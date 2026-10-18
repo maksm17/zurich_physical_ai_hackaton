@@ -1,4 +1,3 @@
-# Same file builds on x86 laptop and on RPi 5 (arm64): ros:jazzy is multi-arch.
 FROM ros:jazzy-ros-base
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -8,6 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-jazzy-imu-filter-madgwick \
       ros-jazzy-robot-state-publisher \
       ros-jazzy-xacro \
+      ros-jazzy-teleop-twist-keyboard \
+      python3-libgpiod \
       python3-serial \
       python3-smbus \
       python3-numpy \
@@ -16,8 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /ws
 COPY ws/src src
-# --symlink-install: Python, launch and yaml files stay linked to /ws/src,
-# so with ./ws/src mounted (compose.yaml) edits need no rebuild. C++ changes do.
 RUN . /opt/ros/jazzy/setup.sh && colcon build --symlink-install
 
 COPY docker/entrypoint.sh /entrypoint.sh

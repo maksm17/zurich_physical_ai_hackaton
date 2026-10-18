@@ -1,16 +1,6 @@
 <?xml version="1.0" ?>
 <robot name="biped" xmlns:xacro="http://www.ros.org/wiki/xacro" >
 
-<!--
-  use_mock:=true  -> fake hardware (laptop, no servos), commands are echoed to states
-  use_mock:=false -> ST3215 servos, one Waveshare bus adapter per leg
-
-  Per joint:
-    id    servo ID on its bus (set with: ros2 run biped_control st3215_tool set-id ...)
-    port  serial port of that leg: RPi5 UART0 (GPIO14/15) and UART2 (GPIO4/5, dtoverlay=uart2-pi5)
-    sign  +1 / -1 so that positive angle matches the URDF joint axis
-    zero  servo ticks at URDF angle 0 (2048 after "st3215_tool set-middle")
--->
 <xacro:arg name="use_mock" default="false"/>
 <xacro:arg name="left_port" default="/dev/ttyAMA0"/>
 <xacro:arg name="right_port" default="/dev/ttyAMA2"/>
@@ -43,32 +33,29 @@
     <xacro:unless value="$(arg use_mock)">
       <plugin>st3215_hardware/ST3215System</plugin>
       <param name="baud">1000000</param>
-      <!-- 0 = max acceleration / max speed; the controller streams small steps anyway -->
+
       <param name="acc">0</param>
       <param name="speed">0</param>
       <param name="timeout_ms">5</param>
-      <!-- true: adapter on RPi GPIO UART echoes TX back; false: adapter over USB -->
+
       <param name="echo">true</param>
     </xacro:unless>
   </hardware>
 
-  <!-- left leg: adapter 1, IDs 1-3 -->
   <xacro:st_joint name="l_up"   id="1" port="$(arg left_port)"  sign="-1"/>
   <xacro:st_joint name="l_mid"  id="2" port="$(arg left_port)"  sign="1"/>
   <xacro:st_joint name="l_down" id="3" port="$(arg left_port)"  sign="-1"/>
 
-  <!-- right leg: adapter 2, IDs 4-6 -->
   <xacro:st_joint name="r_up"   id="4" port="$(arg right_port)" sign="-1"/>
   <xacro:st_joint name="r_mid"  id="5" port="$(arg right_port)" sign="1"/>
   <xacro:st_joint name="r_down" id="6" port="$(arg right_port)" sign="1"/>
 </ros2_control>
 
-<!-- MPU6050. Fix xyz/rpy to the real mounting so that Madgwick roll/pitch match the body. -->
 <link name="imu_link"/>
 <joint name="imu_joint" type="fixed">
   <parent link="base_link"/>
   <child link="imu_link"/>
-  <origin xyz="0 0 0.25" rpy="0 0 0"/>
+  <origin xyz="0 0 0.25" rpy="0 0 3.14159265"/>
 </joint>
 
 </robot>

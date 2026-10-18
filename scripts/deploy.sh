@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Copy the repo to the RPi and (re)build + start the container there.
-#   scripts/deploy.sh pi@raspberrypi.local            # sync + build + start
-#   scripts/deploy.sh pi@raspberrypi.local --no-up    # only sync + build
-#   scripts/deploy.sh pi@raspberrypi.local --restart  # sync + restart, no build (Python/yaml/launch)
-# Optional: SSH_KEY=./zurich_key  REMOTE_DIR=~/zurich
 set -euo pipefail
 HOST=${1:?usage: deploy.sh user@host [--no-up]}
 REMOTE_DIR=${REMOTE_DIR:-zurich}

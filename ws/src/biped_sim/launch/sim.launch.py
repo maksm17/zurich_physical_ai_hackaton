@@ -34,6 +34,11 @@ def generate_launch_description():
                               description='[x,y,thick] flat | [R,width] rocker | [R] sphere'),
         DeclareLaunchArgument('foot_cut', default_value='0.0',
                               description='CAD feet filed flat by this much [m] (flat_sole:=false)'),
+        DeclareLaunchArgument('nav', default_value='false'),
+        DeclareLaunchArgument('camera_url', default_value='http://127.0.0.1:5000/status'),
+        DeclareLaunchArgument('gesture_source', default_value='array'),
+        DeclareLaunchArgument('gesture_topic', default_value='/camera/goal'),
+        DeclareLaunchArgument('gesture_mode', default_value='hold'),
         DeclareLaunchArgument('gait_params', default_value=os.path.join(
             ctrl, 'config', 'gait.yaml')),
         DeclareLaunchArgument('policy', default_value='',
@@ -64,6 +69,13 @@ def generate_launch_description():
         Node(package='robot_state_publisher', executable='robot_state_publisher',
              parameters=[{'robot_description': ParameterValue(
                  Command(['xacro ', xacro_file, ' use_mock:=true']), value_type=str)}]),
+
+        Node(package='biped_control', executable='nav_fsm', name='nav_fsm', output='screen',
+             parameters=[{'camera_url': LaunchConfiguration('camera_url'),
+                          'gesture_source': LaunchConfiguration('gesture_source'),
+                          'gesture_mode': LaunchConfiguration('gesture_mode'),
+                          'gesture_array_topic': LaunchConfiguration('gesture_topic')}],
+             condition=IfCondition(LaunchConfiguration('nav'))),
 
         Node(package='rviz2', executable='rviz2',
              arguments=['-d', os.path.join(desc, 'config', 'display.rviz')],

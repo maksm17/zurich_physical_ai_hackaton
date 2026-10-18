@@ -42,7 +42,7 @@ def generate_launch_description():
             arguments=[
                 "-topic", "/robot_description",
                 "-name", "biped",
-                "-allow_renaming", "false",  # prevents "_1" duplicate
+                "-allow_renaming", "false",
                 "-x", "0.0",
                 "-y", "0.0",
                 "-z", "0.32",

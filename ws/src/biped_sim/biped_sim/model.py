@@ -10,7 +10,6 @@ import numpy as np
 
 JOINTS = ['l_up', 'l_mid', 'l_down', 'r_up', 'r_mid', 'r_down']
 
-# ST3215 @ 12 V: ~30 kg.cm stall torque
 SERVO = dict(kp=8.0, kv=0.15, max_torque=2.9, armature=0.005, damping=0.05, frictionloss=0.01)
 
 
@@ -26,7 +25,6 @@ def urdf_from_xacro(xacro_path):
             root.remove(el)
     for mesh in root.iter('mesh'):
         mesh.set('filename', re.sub(r'^(file|package)://', '', mesh.get('filename')))
-    # keep visual meshes, don't fuse fixed links away (imu_link)
     mj = ET.SubElement(root, 'mujoco')
     ET.SubElement(mj, 'compiler', discardvisual='false', balanceinertia='true',
                   fusestatic='false')
@@ -47,7 +45,7 @@ def build_spec(urdf, servo=SERVO):
     mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = tex.name
     world.add_geom(name='floor', type=mujoco.mjtGeom.mjGEOM_PLANE, size=[3, 3, 0.1],
                    material='grid', friction=[1.0, 0.005, 0.0001],
-                   conaffinity=3)  # bit 2: soles collide only with the floor
+                   conaffinity=3)
 
     base = spec.body('base_link')
     base.add_freejoint(name='root')
@@ -113,14 +111,13 @@ def add_soles(spec, model, data, size):
                 continue
             m = model.geom_dataid[g]
             v = model.mesh_vert[model.mesh_vertadr[m]:model.mesh_vertadr[m] + model.mesh_vertnum[m]]
-            w = data.geom_xpos[g] + v @ data.geom_xmat[g].reshape(3, 3).T  # world, zero pose
+            w = data.geom_xpos[g] + v @ data.geom_xmat[g].reshape(3, 3).T
             spec.geom(model.geom(g).name).contype = 0
             spec.geom(model.geom(g).name).conaffinity = 0
         center = np.array([(w[:, 0].min() + w[:, 0].max()) / 2,
                            (w[:, 1].min() + w[:, 1].max()) / 2,
                            w[:, 2].min() + size[-1] / 2])
         if len(size) == 2:
-            # cylindrical rocker: curved front-back (radius R), flat sideways (width)
             center[2] = w[:, 2].min() + size[0]
             local = data.xmat[bid].reshape(3, 3).T @ (center - data.xpos[bid])
             spec.body(foot).add_geom(name=foot + '_sole', type=mujoco.mjtGeom.mjGEOM_CYLINDER,
@@ -130,7 +127,6 @@ def add_soles(spec, model, data, size):
                                      contype=2, conaffinity=0)
             continue
         if len(size) == 1:
-            # rocker sole: sphere of radius R touching the floor at the footprint centre
             center[2] = w[:, 2].min() + size[0]
             local = data.xmat[bid].reshape(3, 3).T @ (center - data.xpos[bid])
             spec.body(foot).add_geom(name=foot + '_sole', type=mujoco.mjtGeom.mjGEOM_SPHERE,
@@ -156,7 +152,7 @@ def cut_feet(spec, model, data, depth):
                 continue
             m = model.geom_dataid[g]
             v = model.mesh_vert[model.mesh_vertadr[m]:model.mesh_vertadr[m] + model.mesh_vertnum[m]]
-            w = data.geom_xpos[g] + v @ data.geom_xmat[g].reshape(3, 3).T  # world, zero pose
+            w = data.geom_xpos[g] + v @ data.geom_xmat[g].reshape(3, 3).T
             plane = w[:, 2].min() + depth
             low = w[:, 2] <= plane
             patches[foot] = (np.ptp(w[low, 0]), np.ptp(w[low, 1]))
@@ -184,7 +180,6 @@ def build_model(xacro_path, servo=SERVO, sole=None, cut=0.0):
     data = mujoco.MjData(model)
     mujoco.mj_forward(model, data)
     if sole is not None or cut > 0:
-        # name unnamed mesh geoms so they can be looked up in the spec
         for g in spec.geoms:
             if not g.name:
                 g.name = f'geom_{id(g)}'

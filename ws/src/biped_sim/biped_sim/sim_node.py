@@ -23,6 +23,7 @@ from std_srvs.srv import Trigger
 from tf2_ros import TransformBroadcaster
 
 from biped_sim.model import build_model, JOINTS, SERVO
+from biped_sim.servo import REAL, ServoModel
 
 
 class SimNode(Node):
@@ -35,11 +36,12 @@ class SimNode(Node):
         self.declare_parameter('viewer', True)
         self.declare_parameter('publish_rate', 100.0)
         self.declare_parameter('realtime_factor', 1.0)
-        # CAD feet have a rounded bottom -> robot tips over. Flat box soles [x, y, thickness]:
         self.declare_parameter('flat_sole', True)
         self.declare_parameter('sole_size', [0.04, 0.045, 0.004])
-        # flat_sole false: CAD feet, optionally filed flat by foot_cut [m]
         self.declare_parameter('foot_cut', 0.0)
+        self.declare_parameter('servo_model', True)
+        for k, v in REAL.items():
+            self.declare_parameter('servo_' + k, v)
         for k, v in SERVO.items():
             self.declare_parameter('servo.' + k, v)
 
@@ -60,6 +62,12 @@ class SimNode(Node):
             f'MuJoCo model: {m.body_subtreemass[1]:.3f} kg, servo {servo}')
 
         self.ctrl = np.zeros(len(JOINTS))
+        self.servo = None
+        if self.get_parameter('servo_model').value:
+            sp = {k: self.get_parameter('servo_' + k).value for k in REAL}
+            self.servo = ServoModel(len(JOINTS), dt=m.opt.timestep, **sp)
+            self.servo.reset(self.data.qpos[self.qadr])
+            self.get_logger().info(f'servo model {sp}')
         self.reset_requested = False
 
         self.js_pub = self.create_publisher(JointState, 'joint_states', 10)
@@ -125,7 +133,6 @@ class SimNode(Node):
         self.tf.sendTransform(tf)
 
     def run(self, executor, viewer=None):
-        # Single thread: ROS callbacks are served between physics steps (no GIL fight).
         m, d = self.model, self.data
         pub_dt = 1.0 / self.get_parameter('publish_rate').value
         rtf = self.get_parameter('realtime_factor').value
@@ -136,14 +143,19 @@ class SimNode(Node):
                 self.reset_requested = False
                 mujoco.mj_resetData(m, d)
                 mujoco.mj_forward(m, d)
+                if self.servo is not None:
+                    self.servo.reset(d.qpos[self.qadr])
                 t_wall0, t_sim0, next_pub = time.monotonic(), d.time, 0.0
             executor.spin_once(timeout_sec=0.0)
-            d.ctrl[self.act] = self.ctrl
             target = t_sim0 + (time.monotonic() - t_wall0) * rtf
-            if target - d.time > 0.02:  # stalled (e.g. viewer): drop time instead of catching up
+            if target - d.time > 0.02:
                 t_sim0 -= target - d.time - 0.02
                 target = d.time + 0.02
             while d.time < target:
+                if self.servo is not None:
+                    d.ctrl[self.act] = self.servo.update(self.ctrl, d.qpos[self.qadr])
+                else:
+                    d.ctrl[self.act] = self.ctrl
                 mujoco.mj_step(m, d)
             if d.time >= next_pub:
                 self.publish()
@@ -167,7 +179,6 @@ def main():
             node.run(executor)
     except KeyboardInterrupt:
         pass
-    # GLFW teardown of the passive viewer can hang or segfault on exit: skip it.
     rclpy.try_shutdown()
     os._exit(0)
 

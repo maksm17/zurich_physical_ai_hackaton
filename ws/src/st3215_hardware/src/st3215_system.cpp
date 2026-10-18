@@ -23,7 +23,7 @@ std::string param_or(
   auto it = params.find(key);
   return it == params.end() ? def : it->second;
 }
-}  // namespace
+}
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -97,7 +97,6 @@ hardware_interface::CallbackReturn ST3215System::on_configure(const rclcpp_lifec
     }
     RCLCPP_INFO(LOGGER, "Opened %s (%zu servos)", port.c_str(), bus->ids.size());
   }
-  // Retry a few times: the first packet after opening is sometimes lost.
   for (int attempt = 0; attempt < 5; ++attempt) {
     if (read_all(true)) {
       return CallbackReturn::SUCCESS;
@@ -116,7 +115,6 @@ hardware_interface::CallbackReturn ST3215System::on_cleanup(const rclcpp_lifecyc
 
 hardware_interface::CallbackReturn ST3215System::on_activate(const rclcpp_lifecycle::State &)
 {
-  // Every servo must report its position: an unknown one would be commanded to 0 rad and jump.
   bool ok = false;
   for (int attempt = 0; attempt < 5 && !ok; ++attempt) {
     ok = read_all(attempt == 4);
@@ -125,8 +123,16 @@ hardware_interface::CallbackReturn ST3215System::on_activate(const rclcpp_lifecy
     RCLCPP_FATAL(LOGGER, "Not all servos answered, refusing to enable torque");
     return CallbackReturn::ERROR;
   }
+  for (const auto & j : joints_) {
+    if (j.pos < j.min - 0.05 || j.pos > j.max + 0.05) {
+      RCLCPP_FATAL(LOGGER, "%s is at %.0f deg, outside its limits [%.0f, %.0f] deg: move it "
+        "by hand towards zero before enabling torque", j.name.c_str(), j.pos * 180 / M_PI,
+        j.min * 180 / M_PI, j.max * 180 / M_PI);
+      return CallbackReturn::ERROR;
+    }
+  }
   for (auto & j : joints_) {
-    j.cmd = j.pos;  // hold current pose, no jump on enable
+    j.cmd = j.pos;
   }
   for (auto & [port, bus] : buses_) {
     std::vector<int> ticks;
@@ -176,6 +182,7 @@ bool ST3215System::read_all(bool require_all)
     std::vector<bool> ok;
     bus->bus.sync_read_position(bus->ids, ticks, speed, ok, timeout_ms_);
     std::ostringstream missing;
+    bool bus_ok = true;
     for (size_t k = 0; k < bus->joints.size(); ++k) {
       auto & j = joints_[bus->joints[k]];
       if (ok[k]) {
@@ -183,8 +190,14 @@ bool ST3215System::read_all(bool require_all)
         j.vel = j.sign * speed[k] / TICKS_PER_RAD;
       } else {
         all_ok = false;
+        bus_ok = false;
         missing << " " << j.name << "(id " << static_cast<int>(j.id) << ")";
       }
+    }
+    bus->fail_cycles = bus_ok ? 0 : bus->fail_cycles + 1;
+    if (bus->fail_cycles >= 50 && bus->fail_cycles % 100 == 50) {
+      RCLCPP_ERROR(LOGGER, "BUS %s NOT ANSWERING for %zu cycles (stale positions!):%s - check "
+        "RX/GND wiring and servo power", port.c_str(), bus->fail_cycles, missing.str().c_str());
     }
     if (require_all && !missing.str().empty()) {
       RCLCPP_ERROR(LOGGER, "No answer on %s from:%s", port.c_str(), missing.str().c_str());
@@ -196,7 +209,6 @@ bool ST3215System::read_all(bool require_all)
 hardware_interface::return_type ST3215System::read(
   const rclcpp::Time &, const rclcpp::Duration &)
 {
-  // A lost packet is not fatal: keep last known state and report occasionally.
   if (!read_all(false)) {
     if (++read_errors_ % 100 == 1) {
       RCLCPP_WARN(LOGGER, "Servo read errors so far: %zu", read_errors_);
@@ -222,6 +234,6 @@ hardware_interface::return_type ST3215System::write(
   return hardware_interface::return_type::OK;
 }
 
-}  // namespace st3215_hardware
+}
 
 PLUGINLIB_EXPORT_CLASS(st3215_hardware::ST3215System, hardware_interface::SystemInterface)

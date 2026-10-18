@@ -1,0 +1,22 @@
+gait:
+  ros__parameters:
+    rate: 100.0
+    sem_sign: [1.0, 1.0, 1.0, 1.0, -1.0, 1.0]
+    trim: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    freq: 1.4
+    roll_amp: 0.10
+    step_amp: 0.25
+    phase_deg: -90.0
+    ankle_ratio: 1.0
+    turn: 0.0
+    fwd_min: 0.0
+    fwd_max: 1.0
+    turn_min: -0.1
+    turn_max: 0.05
+    max_vx: 0.5
+    max_wz: 20.0
+    imu_roll_sign: -1.0
+    imu_pitch_sign: -1.0
+    k_roll: -1.0
+    k_pitch: 0.0
+    trajectory_file: ""

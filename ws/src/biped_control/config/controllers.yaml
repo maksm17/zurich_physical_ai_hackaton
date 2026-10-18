@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 100  # Hz
+    update_rate: 100
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -10,5 +10,4 @@ controller_manager:
 
 position_controller:
   ros__parameters:
-    # order matters: gait_node publishes Float64MultiArray in this order
     joints: [l_up, l_mid, l_down, r_up, r_mid, r_down]

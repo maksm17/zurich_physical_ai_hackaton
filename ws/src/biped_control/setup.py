@@ -14,6 +14,7 @@ setup(
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
         ('share/' + package_name + '/config', glob('config/*.yaml')),
         ('share/' + package_name + '/trajectories', glob('trajectories/*.csv')),
+        ('share/' + package_name + '/policies', glob('policies/*.npz')),
         ('share/' + package_name + '/udev', glob('udev/*')),
     ],
     install_requires=['setuptools'],
@@ -28,6 +29,7 @@ setup(
             'mpu6050_node = biped_control.mpu6050_node:main',
             'st3215_tool = biped_control.st3215_tool:main',
             'rl_policy_node = biped_control.rl_policy_node:main',
+            'nav_fsm = biped_control.nav_fsm:main',
         ],
     },
 )

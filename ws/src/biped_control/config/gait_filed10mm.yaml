@@ -1,17 +1,22 @@
-# Feet filed flat 10 mm (flat patch ~3.4 x 3.4 cm). Tuned in MuJoCo (biped_sim foot_cut:=0.010):
-# robust to kp 4-15, friction 0.5, mass x1.3, perturbed start; worst case ~5.8 cm/s.
-# `turn` only trims heading here (usable range about -0.15 .. +0.3); +0.25 ~ straight in sim.
 gait:
   ros__parameters:
     rate: 100.0
     sem_sign: [1.0, 1.0, 1.0, 1.0, -1.0, 1.0]
-    trim: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    freq: 1.8
+    trim: [0.0, 0.0, -0.045, 0.0, 0.0, -0.045]
+    freq: 1.4
     roll_amp: 0.08
-    step_amp: 0.25
+    step_amp: 0.06
     phase_deg: -90.0
     ankle_ratio: 1.0
-    turn: 0.25
-    k_roll: 0.0
+    turn: 0.0
+    fwd_min: 0.0
+    fwd_max: 1.0
+    turn_min: -0.1
+    turn_max: 0.05
+    max_vx: 0.5
+    max_wz: 20.0
+    imu_roll_sign: -1.0
+    imu_pitch_sign: -1.0
+    k_roll: -1.0
     k_pitch: 0.0
     trajectory_file: ""

@@ -28,10 +28,9 @@ speed_t to_speed(int baud)
 
 int decode_signed(uint16_t raw)
 {
-  // STS encodes sign in bit 15
   return (raw & 0x8000) ? -static_cast<int>(raw & 0x7FFF) : static_cast<int>(raw);
 }
-}  // namespace
+}
 
 StsBus::~StsBus() {close();}
 
@@ -104,14 +103,12 @@ bool StsBus::write_packet(uint8_t id, uint8_t instr, const std::vector<uint8_t> 
 
 void StsBus::drop_echo(const std::vector<uint8_t> & pkt)
 {
-  // Wire time of the packet at 1 Mbaud is ~10 us/byte; 3 ms covers USB-less UART latency.
   std::vector<uint8_t> got(pkt.size());
   size_t n = 0;
   while (n < got.size() && read_exact(&got[n], 1, 3)) {
     ++n;
   }
   got.resize(n);
-  // The first byte after opening the port is sometimes lost: accept echo without it.
   for (size_t skip : {size_t{0}, size_t{1}}) {
     const size_t len = pkt.size() - skip;
     if (got.size() >= len && std::equal(pkt.begin() + skip, pkt.end(), got.begin())) {
@@ -152,7 +149,6 @@ bool StsBus::read_exact(uint8_t * buf, size_t n, int timeout_ms)
 
 bool StsBus::read_status(uint8_t & id, std::vector<uint8_t> & data, int timeout_ms)
 {
-  // Find 0xFF 0xFF header
   uint8_t b = 0;
   int ff = 0;
   for (int i = 0; i < 64 && ff < 2; ++i) {
@@ -164,11 +160,10 @@ bool StsBus::read_status(uint8_t & id, std::vector<uint8_t> & data, int timeout_
   if (ff < 2) {
     return false;
   }
-  uint8_t hdr[2];  // id, len
+  uint8_t hdr[2];
   if (!read_exact(hdr, 2, timeout_ms)) {
     return false;
   }
-  // a third 0xFF can precede the id
   if (hdr[0] == 0xFF) {
     hdr[0] = hdr[1];
     if (!read_exact(&hdr[1], 1, timeout_ms)) {
@@ -179,7 +174,7 @@ bool StsBus::read_status(uint8_t & id, std::vector<uint8_t> & data, int timeout_
   if (len < 2) {
     return false;
   }
-  std::vector<uint8_t> rest(len);  // error, data..., checksum
+  std::vector<uint8_t> rest(len);
   if (!read_exact(rest.data(), len, timeout_ms)) {
     return false;
   }
@@ -198,7 +193,7 @@ bool StsBus::read_status(uint8_t & id, std::vector<uint8_t> & data, int timeout_
 bool StsBus::sync_write_position(
   const std::vector<uint8_t> & ids, const std::vector<int> & ticks, uint8_t acc, uint16_t speed)
 {
-  constexpr uint8_t data_len = 7;  // acc, pos(2), time(2), speed(2)
+  constexpr uint8_t data_len = 7;
   std::vector<uint8_t> params{reg::ACC, data_len};
   for (size_t i = 0; i < ids.size(); ++i) {
     const uint16_t p = static_cast<uint16_t>(ticks[i]);
@@ -252,4 +247,4 @@ void StsBus::sync_read_position(
   }
 }
 
-}  // namespace st3215_hardware
+}

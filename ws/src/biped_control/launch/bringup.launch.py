@@ -10,7 +10,8 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import Command, LaunchConfiguration, PythonExpression
+from launch.substitutions import (Command, LaunchConfiguration, PathJoinSubstitution,
+                                  PythonExpression)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -37,8 +38,14 @@ def generate_launch_description():
         DeclareLaunchArgument('imu', default_value='true'),
         DeclareLaunchArgument('gait', default_value='true'),
         DeclareLaunchArgument('rviz', default_value='false'),
-        # read_only: hardware stays INACTIVE (torque off), only joint_states are published
+        DeclareLaunchArgument('policy', default_value=''),
+        DeclareLaunchArgument('imu_power_gpio', default_value='17'),
         DeclareLaunchArgument('read_only', default_value='false'),
+        DeclareLaunchArgument('nav', default_value='false'),
+        DeclareLaunchArgument('camera_url', default_value='http://127.0.0.1:5000/status'),
+        DeclareLaunchArgument('gesture_source', default_value='array'),
+        DeclareLaunchArgument('gesture_topic', default_value='/camera/goal'),
+        DeclareLaunchArgument('gesture_mode', default_value='hold'),
         DeclareLaunchArgument('gait_params', default_value=os.path.join(
             ctrl, 'config', 'gait.yaml')),
 
@@ -59,7 +66,10 @@ def generate_launch_description():
         Node(package='controller_manager', executable='spawner',
              arguments=['joint_state_broadcaster'], condition=IfCondition(read_only)),
 
-        Node(package='biped_control', executable='mpu6050_node',
+        Node(package='biped_control', executable='mpu6050_node', output='screen',
+             respawn=True, respawn_delay=2.0,
+             parameters=[{'power_gpio': ParameterValue(LaunchConfiguration('imu_power_gpio'),
+                                                       value_type=int)}],
              condition=IfCondition(LaunchConfiguration('imu'))),
 
         Node(package='imu_filter_madgwick', executable='imu_filter_madgwick_node',
@@ -70,7 +80,21 @@ def generate_launch_description():
              parameters=[LaunchConfiguration('gait_params')], output='screen',
              condition=IfCondition(PythonExpression([
                  "'", LaunchConfiguration('gait'), "' == 'true' and '", read_only,
-                 "' != 'true'"]))),
+                 "' != 'true' and '", LaunchConfiguration('policy'), "' == ''"]))),
+
+        Node(package='biped_control', executable='rl_policy_node', name='rl_policy',
+             output='screen',
+             parameters=[{'policy': PathJoinSubstitution(
+                 [ctrl, 'policies', [LaunchConfiguration('policy'), '.npz']])}],
+             condition=IfCondition(PythonExpression([
+                 "'", LaunchConfiguration('policy'), "' != '' and '", read_only, "' != 'true'"]))),
+
+        Node(package='biped_control', executable='nav_fsm', name='nav_fsm', output='screen',
+             parameters=[{'camera_url': LaunchConfiguration('camera_url'),
+                          'gesture_source': LaunchConfiguration('gesture_source'),
+                          'gesture_mode': LaunchConfiguration('gesture_mode'),
+                          'gesture_array_topic': LaunchConfiguration('gesture_topic')}],
+             condition=IfCondition(LaunchConfiguration('nav'))),
 
         Node(package='rviz2', executable='rviz2',
              arguments=['-d', os.path.join(desc, 'config', 'display.rviz')],

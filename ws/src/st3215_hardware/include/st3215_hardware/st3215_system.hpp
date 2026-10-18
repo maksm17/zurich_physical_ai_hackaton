@@ -12,8 +12,6 @@
 namespace st3215_hardware
 {
 
-// ros2_control SystemInterface for Waveshare ST3215 servos.
-// Joints may be spread over several serial adapters (e.g. one per leg).
 class ST3215System : public hardware_interface::SystemInterface
 {
 public:
@@ -51,6 +49,7 @@ private:
     StsBus bus;
     std::vector<size_t> joints;
     std::vector<uint8_t> ids;
+    size_t fail_cycles{0};
   };
 
   bool read_all(bool require_all);
@@ -67,4 +66,4 @@ private:
   size_t read_errors_{0};
 };
 
-}  // namespace st3215_hardware
+}

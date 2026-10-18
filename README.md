@@ -114,6 +114,51 @@ ros2 service call /gait/estop std_srvs/srv/Trigger     # stop now
 ros2 service call /gait/resume std_srvs/srv/Trigger    # stand up smoothly from the current pose
 ```
 
+## Driving the real robot (laptop)
+
+```bash
+scripts/robot.sh start-ro        # torque OFF, joint_states + IMU only (checks, calibration)
+scripts/robot.sh rviz            # RViz showing the real joints
+scripts/robot.sh start           # torque ON, stands up (gait_filed10mm.yaml)
+scripts/robot.sh walk | stop
+scripts/robot.sh teleop          # i forward, j/l turn, k stop (safe ranges clipped in gait_node)
+scripts/robot.sh estop | resume
+scripts/robot.sh set step_amp 0.15
+scripts/robot.sh status | logs | down
+```
+
+### Navigation state machine (nav_fsm)
+`scripts/robot.sh start gait_filed10mm.yaml nav:=true` (sim: `scripts/sim.sh ... nav:=true`)
+
+- `IDLE → TURN ⇄ SETTLE → WALK → IDLE`, plus `OBSTACLE` (camera) and `HALTED` (fall / e-stop).
+- Polar goal: `scripts/robot.sh goal 0.5 45` (r = 0.5 m, θ = +45° = left) → topic `/goal_polar`
+  (`geometry_msgs/Point`, x = r, y = θ in degrees).
+- Camera gestures (default `gesture_source:=array`): ONE topic `/camera/goal` (`gesture_topic:=...`, teammates' robot_controller.py, Int8MultiArray, 20 Hz)
+  with 5 values `[forward, back, left, right, stop]`, exactly one 1, e.g. `0,0,0,1,0` = right; type auto-detected
+  (Int*/Float*MultiArray or String "0,1,0,0,0"/"01000"); all zeros = nothing, two 1s = stop. Publish ~10 Hz.
+  (Alternative `gesture_source:=topics`: 5 `std_msgs/Bool` topics `/camera/forward` ... `/camera/stop`.)
+  `gesture_mode:=hold`: moves while true, stops when all false or the topics go silent > 1 s;
+  priority stop > back > forward > left > right; `back` = stop. `gesture_mode:=step`: one 0.3 m step / 45° turn
+  per new gesture. Old Flask JSON still possible with `gesture_source:=http`.
+- **Same `ROS_DOMAIN_ID` as the camera nodes** (compose default 42; set `ROS_DOMAIN_ID=...` before `docker compose up`).
+- No odometry: distance = speed × time (`walk_speed`, calibrate), heading from the IMU.
+- Turning is weak on filed feet (no hip yaw): turns in chunks (8 s turn, stop, 2.5 s settle, re-measure),
+  right turns fall back to "left the long way" if they make no progress (`turn_mode`).
+
+### First powered run — checklist
+1. Body + IMU mounted. `start-ro`, robot standing straight on the table: `status` → IMU roll/pitch ≈ 0.
+   If not, fix `rpy` of `imu_link` (biped.ros2control).
+2. Re-zero the hips (body changes their zero): robot in zero pose →
+   `st3215_tool --port /dev/ttyAMA0 set-middle 1` and `--port /dev/ttyAMA2 set-middle 4`.
+3. `rviz`, move each joint by hand: model must follow the real leg (signs).
+4. **Hang the robot (feet off the ground)**, one hand on `scripts/robot.sh estop`.
+5. `start` → it moves to the stand pose over 2 s. Check: no buzzing, servo temp ok (`st3215_tool scan`).
+6. Half amplitude first: `set step_amp 0.12`, `set roll_amp 0.04`, `walk`. Watch it, `stop`.
+7. Full gait in the air: `set step_amp 0.25`, `set roll_amp 0.08`, `walk`.
+8. On the floor, hand around the robot: `walk`; tune `turn` (heading trim) so it goes straight.
+9. IMU feedback is on (`k_roll -1.0`, `k_pitch 0.35`). If it oscillates/gets worse: `set k_roll 0`, `set k_pitch 0`
+   → IMU axes/signs are wrong.
+
 ## MuJoCo simulation (laptop)
 
 `biped_sim` builds a MuJoCo model straight from `biped.xacro` and stands in for the real hardware
@@ -137,6 +182,12 @@ Findings:
   width 4.5 cm, length ≥ 6 cm**: stands 5/5 from perturbed starts, 51/54 gaits stable, default gait 5.6 cm/s,
   robust to kp/torque/friction/mass. Turning by step-length difference does **not** work on it (rolls straight).
 - Flat 4×4.5 cm soles: 43/54 gaits, ~4.5 cm/s, turning via `cmd_vel` works.
+- **Servo model** (`biped_sim/servo.py`, on by default): measured on the real ST3215
+  (`scripts/servo_test.py`): ~80 ms command→motion in the ROS loop, deadband ~0.4°, `acc/speed 0`
+  is the fastest setting. Sim: 35 ms dead time + 15 ms lag + 0.46° deadband on top of the actuator.
+  With it: filed-feet gait + IMU feedback survive 81 % of push trials (33 % without IMU);
+  step-length steering does **not** work on filed feet (always ~−3°/s right curve) → `turn` 0,
+  range −0.1…0.05; turning is left to the RL policy.
 - **CAD feet filed flat** (`flat_sole:=false foot_cut:=<m>`): stands from 4 mm (patch 2.3 cm),
   **10 mm recommended** (patch ~3.4×3.4 cm) with `config/gait_filed10mm.yaml`: ~5.4 cm/s, robust to kp 4–15,
   friction 0.5, mass ×1.3; `turn` only trims heading (≈ −0.15 … +0.3).

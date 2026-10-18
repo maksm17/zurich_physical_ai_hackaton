@@ -43,9 +43,8 @@ class StsBus:
         self._drop_echo(pkt)
 
     def _drop_echo(self, pkt):
-        # Half-duplex adapters wired to a UART loop TX back to RX: skip our own packet.
         got = self.ser.read(len(pkt))
-        for echo in (pkt, pkt[1:]):  # first byte after opening the port is sometimes lost
+        for echo in (pkt, pkt[1:]):
             if got.startswith(echo):
                 got = got[len(echo):]
                 break
@@ -58,10 +57,10 @@ class StsBus:
         return data
 
     def _recv(self):
-        hdr = self._read(4)  # FF FF ID LEN
+        hdr = self._read(4)
         if len(hdr) < 4 or hdr[0] != 0xFF or hdr[1] != 0xFF:
             return None
-        rest = self._read(hdr[3])  # ERR, data..., CHK
+        rest = self._read(hdr[3])
         if len(rest) < hdr[3]:
             return None
         if (~(hdr[2] + hdr[3] + sum(rest[:-1]))) & 0xFF != rest[-1]:
@@ -117,9 +116,6 @@ def cmd_set_id(bus, a):
 
 
 def cmd_set_middle(bus, a):
-    # Writing 128 to TORQUE_ENABLE stores the current position as 2048 (EEPROM offset).
-    # Motion-safe: torque off before, goal := present position after, torque off again
-    # (otherwise a stale goal register could make the servo jump when torque comes on).
     for sid in a.ids:
         before = bus.read_u16(sid, REG_PRESENT_POSITION)
         if before is None:

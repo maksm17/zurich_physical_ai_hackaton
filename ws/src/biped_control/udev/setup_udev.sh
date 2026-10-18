@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Creates /dev/biped_left and /dev/biped_right from the USB port each adapter is plugged into.
-# Usage: plug ONLY the left-leg adapter, run, follow prompts. Don't swap USB ports afterwards.
 set -e
 detect() {
   local dev

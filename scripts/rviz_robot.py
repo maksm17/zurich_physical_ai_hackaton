@@ -38,6 +38,8 @@ def main():
     node.get_logger().info(f'Relaying /joint_states from {host} ...')
     try:
         for line in proc.stdout:
+            if not rclpy.ok():
+                break
             try:
                 names, pos = json.loads(line)
             except ValueError:
