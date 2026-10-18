@@ -1,0 +1,14 @@
+gait:
+  ros__parameters:
+    rate: 100.0
+    # tuned in MuJoCo (biped_sim) with flat 4x4.5 cm soles: robust to kp, torque, friction, mass
+    sem_sign: [1.0, 1.0, 1.0, 1.0, -1.0, 1.0]
+    trim: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    freq: 1.2
+    roll_amp: 0.10
+    step_amp: 0.25
+    phase_deg: -90.0  # sign selects walking direction (+90 = backwards)
+    ankle_ratio: 1.0
+    k_roll: 0.0
+    k_pitch: 0.0
+    trajectory_file: ""

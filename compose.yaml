@@ -1,0 +1,14 @@
+services:
+  robot:
+    build: .
+    image: biped:latest
+    container_name: biped
+    network_mode: host      # ROS 2 DDS discovery with the laptop (RViz, ros2 topic ...)
+    ipc: host
+    privileged: true        # serial adapters + /dev/i2c-1, survives USB re-plug
+    volumes:
+      - /dev:/dev
+      - ./ws/src:/ws/src    # edit Python/launch/yaml without rebuilding
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42}
+    command: ros2 launch biped_control bringup.launch.py ${LAUNCH_ARGS:-}

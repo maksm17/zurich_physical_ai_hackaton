@@ -1,0 +1,8 @@
+imu_filter:
+  ros__parameters:
+    use_mag: false
+    world_frame: enu
+    publish_tf: false
+    gain: 0.1
+    zeta: 0.0
+    fixed_frame: odom

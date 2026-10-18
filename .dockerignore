@@ -1,0 +1,12 @@
+# keep keys and build artifacts out of the image
+zurich
+zurich.pub
+zurich_key
+zurich_key.pub
+.git
+ws/build
+ws/install
+ws/log
+**/__pycache__
+.venv-rl
+rl/runs

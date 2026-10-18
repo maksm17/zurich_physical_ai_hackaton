@@ -1,0 +1,28 @@
+# SSH keys - never commit
+/zurich
+/zurich.pub
+/zurich_key
+/zurich_key.pub
+*.pem
+id_*
+
+# colcon
+ws/build/
+ws/install/
+ws/log/
+build/
+install/
+log/
+
+# python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# editors
+.vscode/
+*.swp
+
+# RL
+.venv-rl/
+rl/runs/

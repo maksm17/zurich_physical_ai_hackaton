@@ -1,0 +1,7 @@
+<library path="st3215_hardware">
+  <class name="st3215_hardware/ST3215System"
+         type="st3215_hardware::ST3215System"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>ros2_control hardware interface for Waveshare ST3215 bus servos (multiple serial ports).</description>
+  </class>
+</library>
